@@ -2,7 +2,8 @@
 
 One per page. Mid-size model (e.g. Sonnet), can edit. Finish line: its cards pass `npm run check` and match the
 old output. Start it only after every card shell exists (`helpers.md`, the order rule). Fill in the `<...>`
-parts; `<work>` is the dashboard-work folder.
+parts; `<work>` is the dashboard-work folder, and `<pattern card path>` is the full path to `s2_revenue_trend.jsx`
+or `s1_summary.jsx` ("Charts" in `cards.md` says where it is). Send the quoted text only.
 
 ## Card helper
 
@@ -10,6 +11,11 @@ parts; `<work>` is the dashboard-work folder.
 > shell (made by `npm run new-card`): a function in `Analysis/<page>.py` and a file `Src/Sections/<id>.jsx`. Read
 > `<work>/references/cards.md` first (the card format and a cheat sheet). `npm run status` shows the tables and their
 > columns.
+>
+> Read only: `cards.md`, `Analysis/<page>.py`, your cards' `Src/Sections/<id>.jsx` files, the old code you're
+> porting, and one pattern card (`<pattern card path>`). Don't open anything else in `<work>`, nor the project's
+> `Src/Components`, `Src/Lib`, `Src/App.jsx`, `Analysis/Shared`, `Tools` or `Data`: `cards.md` covers what they
+> offer.
 >
 > The cards:
 > - `<id>`: `<title>`. Shows `<what>`, as a `<chart type>`. Reads `<tables>`; filters `<filters>`. The note should

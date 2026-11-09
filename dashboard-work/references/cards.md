@@ -75,8 +75,10 @@ always matches the code. The note always sits above the card; a footnote under a
 itself, with its numbers taken from `metrics` and formatted with `FORMATS`.
 
 ## Charts and tables
-- **Charts:** the starter uses ECharts (`Src/Components/ChartECharts.jsx`). `s2_revenue_trend.jsx` shows the pattern.
-  Less common chart types (sankey, gauge, radar) need adding to the list at the top of that file.
+- **Charts:** the starter uses ECharts. For the first chart card, read `s2_revenue_trend.jsx` (chart) or
+  `s1_summary.jsx` (KPI tiles) as the pattern: in the project's `Src/Sections/` if it kept the examples, otherwise in
+  dashboard-new's `starter/Src/Sections/`. Read nothing else from the starter. Less common chart types (sankey, gauge,
+  radar) need adding to the list at the top of `Src/Components/ChartECharts.jsx`.
 - **Colors:** take them from the theme (`fx()` in `Src/Lib/theme.js`), so a theme change reaches every chart.
 - **Plotly:** good for box plots and histograms, or to match an existing Plotly chart exactly. It makes exports
   bigger (~1.5 MB).

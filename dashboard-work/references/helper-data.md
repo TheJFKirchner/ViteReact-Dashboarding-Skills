@@ -4,7 +4,11 @@ One per table. Mid-size model (e.g. Sonnet), can edit. Finish line: its Pipeline
 matches the old output. Read `helpers.md` first for the order rule. Fill in the `<...>` parts; `<work>` is
 the dashboard-work folder.
 
-> Build one data table, `<table>`, for the dashboard project at `<project>`. The reference files are in `<work>/references`.
+> Build one data table, `<table>`, for the dashboard project at `<project>`.
+>
+> Read only: `<work>/references/data.md` (sections "A pipeline script" and "Filters: fast or slow"), the source
+> files and scripts named below, and your own script. Don't open anything else in `<work>`, nor the project's
+> `Pipeline/run_all.py`, `Pipeline/_dataset_io.py`, `Analysis/`, `Src/` or `Tools/`: you only call them.
 >
 > What it should hold: `<one row is ...; columns ...>`.
 > Where it comes from: `<files / existing script, with paths>`.

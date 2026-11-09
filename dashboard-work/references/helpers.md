@@ -20,5 +20,9 @@ card helpers, one per page, so no two helpers ever edit the same file.
 **Give them the plan, not the conversation.** Each brief should carry what the user decided (the row from the plan
 table, the rules to keep, which old output to match). A helper only knows what the brief says.
 
+**Give them files, not folders.** Each brief lists exactly what the helper may open. Send the quoted brief only,
+never the skill folder to look around in: a small model told "the skill is at X" reads every file in it, and
+almost all of them are app code it only needs to run.
+
 **Check what comes back.** Reports can be confidently wrong. Spot-check the numbers and rules that matter, look at
 the dashboard yourself, and tell the user plainly what matched and what didn't.

@@ -19,9 +19,25 @@ Src/Sections/<id>.jsx   the look: one file per card;  Src/Sections/index.js = ca
 Src/custom.css, Themes/ styling
 Reports/ -> Exports/    saved report settings -> offline HTML files
 ```
-`Src/Components`, `Src/Lib`, `Tools`, `Analysis/Shared` are the app itself and rarely need opening.
 A card is three pieces with one name (e.g. `s3_paid_by_region`): its function, its `.jsx` file, its line in
 `index.js`. Numbers live in Python, the look in React, so a style change can't break a number.
+
+## What to read, edit, run and never open
+**In this skill folder:** read this page and the one or two `references/` files the route table names, nothing
+else. `agent/` (the design agent's code, 37 files) is never opened, copied or edited: projects load it from here
+when they run. To use the agent you only need `references/agent.md`. `agent/README.md` is for changing the agent
+itself.
+
+**In the project:**
+| | Files |
+|---|---|
+| **Edit** (read the one you're changing) | `dashboard.config.json`, `Pipeline/<table>.py`, `Analysis/<page>.py`, `Src/Sections/*.jsx`, `Src/Sections/index.js`, `Src/custom.css`, `Reports/*.json`, `Themes/` |
+| **Run, don't read** | `npm run status / check / new-card / pipeline / export / dev`, `python Analysis/check.py --show <id>`, `python Pipeline/run_all.py --try <script>`. Their output is the answer |
+| **Never open** | The app: `Src/App.jsx`, `Src/main.jsx`, `Src/styles.css`, `Src/Components/`, `Src/Controls/`, `Src/Filters/`, `Src/Lib/`, `Analysis/Shared/`, `Analysis/server.py`, `check.py`, `precompute.py`, `Pipeline/run_all.py`, `Pipeline/_dataset_io.py`, `Tools/`, `index.html`, `package*.json`, `vite*.config.js`, `node_modules/`, `Data/` (use `npm run status` for tables and columns) |
+
+Exceptions: a pattern card when building the first one (`references/cards.md` says which), and the list at the top
+of `Src/Components/ChartECharts.jsx` for a chart type that isn't loaded yet. Helpers get their brief, which names
+the files they may open; don't hand them a folder to explore.
 
 ## How to work
 1. `npm run status` first: pages, cards, tables, filters, reports and the check result.
@@ -69,4 +85,4 @@ Removing a card or a page: confirm with the user first.
 | `references/reports.md` | Offline HTML reports |
 | `references/hosting.md` | Building and serving it, scheduled refresh |
 | `references/agent.md` | The design agent: what it does, setup, troubleshooting |
-| `agent/` | The design agent's code. One copy, used by every project; never copied into one |
+| `agent/` | The design agent's code. One copy, used by every project; never opened, never copied into one |

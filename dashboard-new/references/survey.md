@@ -2,10 +2,11 @@
 
 One per folder (or per subfolder of a big one). Small model (e.g. Haiku), read-only tools (e.g. the Explore
 agent type). Fill in the `<...>` parts; `<skill>` is the dashboard-new folder. Its finish line is one briefing
-in the shape below.
+in the shape below. Send the quoted text only, not this page or the skill folder.
 
 > Survey the folder `<folder>` so we can plan a dashboard from it. Read only: don't change, move, copy, install or
-> run anything, except the inventory script below.
+> run anything, except the inventory script below. Don't open anything in `<skill>`: run its script, nothing more.
+> Your job is the user's folder.
 >
 > 1. Run `python "<skill>/tools/peek.py" "<folder>"`. It lists data files (columns, types, rows, date ranges,
 >    likely filter and measure columns), scripts and notebooks (files they mention), outputs, and readme or index

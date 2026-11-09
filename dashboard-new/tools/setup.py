@@ -131,8 +131,9 @@ def main() -> int:
     if not a.keep_examples:
         cfg["dataSource"] = ""
         # the example's "region" filter belongs to the sample data; real filters are added once the data is known
-        cfg["filters"] = {"_note": "Filters readers can use, e.g. \"region\": {\"label\": \"Region\", \"column\": \"region\"}. "
-                                   "They apply to every table with that column. See the dashboard-work skill, references/data.md."}
+        cfg["filters"] = {"_note": "Fast filters: every value is already in the loaded tables, e.g. \"region\": {\"label\": \"Region\", \"column\": \"region\"}. "
+                                   "They apply to every table with that column. A filter whose data must be re-queried goes under parameters (slow). "
+                                   "See the dashboard-work skill, references/data.md."}
     port = free_port(8765)
     cfg.setdefault("server", {})["port"] = port
     agent = cfg.setdefault("agent", {})
