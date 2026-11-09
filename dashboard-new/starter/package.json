@@ -1,0 +1,28 @@
+{
+  "name": "integrated-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node Tools/dev.mjs",
+    "dev:agent": "node Tools/dev.mjs --agent",
+    "pipeline": "python Pipeline/run_all.py",
+    "check": "node Tools/check.mjs",
+    "status": "node Tools/status.mjs",
+    "new-card": "node Tools/new-card.mjs",
+    "build": "node Tools/check.mjs && vite build",
+    "serve": "python Analysis/server.py --serve",
+    "export": "node Tools/export.mjs"
+  },
+  "dependencies": {
+    "echarts": "^6.1.0",
+    "plotly.js-cartesian-dist-min": "^4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.2.1",
+    "vite": "^8.3.6",
+    "vite-plugin-singlefile": "^2.3.4"
+  }
+}

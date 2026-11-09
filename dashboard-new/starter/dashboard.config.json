@@ -1,0 +1,32 @@
+{
+  "project": "example-dashboard",
+  "title": "Example dashboard",
+  "dataSource": "Synthetic sample data",
+  "theme": "house",
+  "staleDays": 7,
+  "filters": {
+    "_note": "Fast filters: every value is already in the loaded tables; the Analysis server narrows rows, instantly, per reader. column = the table column they match. Any filter can be fast or slow: make it slow (parameters) only when changing it means querying the source again.",
+    "region": {
+      "label": "Region",
+      "column": "region"
+    }
+  },
+  "parameters": {
+    "_note": "Slow filters: any choice whose data has to be pulled on its own (a region of a huge table, a snapshot month, a scenario). Changing one in the app re-runs Pipeline/run_all.py after a confirmation; one value for everyone. Fixed list: {label, default, options: [...]}; month ends: {label, type: month_end, default: latest, options: {month_ends: 12}}. The value is recorded in Data/Current/manifest.json. See the dashboard-work skill, references/data.md."
+  },
+  "server": {
+    "port": 8765
+  },
+  "agent": {
+    "enabled": true,
+    "model": "claude-haiku-5-5",
+    "effort": "low",
+    "pricing": {
+      "_note": "Approximate cost display only. Claude Haiku 5.5 list prices, USD per million tokens.",
+      "input_per_mtok": 0.1,
+      "output_per_mtok": 0.5,
+      "cache_write_x": 1.25,
+      "cache_read_x": 0.1
+    }
+  }
+}

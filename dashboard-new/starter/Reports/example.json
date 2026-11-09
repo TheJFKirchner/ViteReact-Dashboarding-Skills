@@ -1,0 +1,10 @@
+{
+  "title": "Sales overview",
+  "audience": "Sales leadership",
+  "sections": ["s1_summary", "s2_revenue_trend"],
+  "filters": {
+    "region": { "value": "All", "options": ["All", "East", "North", "South", "West"] }
+  },
+  "commentary": { "s1_summary": true, "s2_revenue_trend": true },
+  "theme": "house"
+}

@@ -1,0 +1,8 @@
+node_modules/
+Dist/
+.export/
+Exports/*.html
+Data/
+Src/Sections/*.agent-preview.jsx
+.dashboard-agent/
+__pycache__/
