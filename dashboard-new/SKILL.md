@@ -34,7 +34,7 @@ what you found and carry on with the rest. Never edit or move the user's origina
 ## The steps
 | Step | What happens | Read | Run |
 |---|---|---|---|
-| 1. Find out what's there | Ask which folder holds the data or the current report, and whether it has an index or readme. Send a survey helper; big folder: one per subfolder, then combine | `references/survey.md` | `python tools/peek.py <folder>` (the helper runs it) |
+| 1. Find out what's there | Ask which folder holds the data or the current report, and whether it has an index or readme. Send a survey helper; big folder: one per subfolder, then combine. It reads only the data, queries, calculations and visuals; the rest of an app (backend, auth, config, tests) isn't read | `references/survey.md` | `python tools/peek.py <folder>` (the helper runs it; it sorts the code into "read" and "not needed") |
 | 2. Plan together | Suggest pages, cards and filters in a short table, marking any filter that needs the source re-queried as slow; the user picks where to start. Their layout wins if they have one. Offer to save the briefing as `DATA_INDEX.md` if there was no index | `work:references/organizing.md`; existing work: `references/existing-work.md` | |
 | 3. Set up the project | Copies the starter and themes into a new folder; records where the design agent is | "Setup" below | `python tools/setup.py <new folder> --title "..."` |
 | 4. Get the data in | Ready files go into `Data/Current/`; anything needing prep gets a Pipeline script, one data helper per table when there are several | `work:references/data.md`, `work:references/helpers.md` | `--try` per script, then `npm run pipeline` once; add fast and slow filters to the config |

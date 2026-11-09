@@ -3,7 +3,9 @@
 This could be notebooks, scripts that write HTML or Excel, a Dash or Streamlit app, or an older integrated
 dashboard. The aim is the same numbers in a clearer layout, without working the logic out again.
 
-It follows the steps in `SKILL.md`: the survey helper reads the existing work, you show the user a
+It follows the steps in `SKILL.md`: the survey helper reads only the parts of the existing work that make or show
+numbers (queries, calculations, visuals; `peek.py` picks them out and skips servers, auth, config, build and
+tests), you show the user a
 plain map of where each piece will go and agree what to start with, then data helpers port the prep and card
 helpers port the outputs (briefs: `survey.md` here, `helper-data.md` and `helper-cards.md` in dashboard-work). A few things specific to existing work:
 

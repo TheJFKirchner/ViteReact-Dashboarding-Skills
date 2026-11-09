@@ -5,9 +5,15 @@
 Lists, without changing, running or copying anything:
   - data files (.csv .tsv .txt-with-delimiters .parquet .xlsx .xls .json .feather): columns, types, rows,
     date ranges, and which columns look like filters (few distinct values) or measures (numbers)
-  - scripts and notebooks (.py .ipynb .sql .r .R): which data files they seem to read and write (hints only)
-  - outputs (.html .png .jpg .svg .pdf), and possible index/readme files that describe the data
+  - code (.py .ipynb .sql .r, and app code: .js .jsx .ts .tsx .vue .svelte, .java .cs .go ...), sorted into
+      READ: has queries or calculations (SQL, groupby/merge/pivot, dplyr, read_sql ...) or draws a visual (Plotly,
+            matplotlib, Dash, Streamlit, ECharts, Chart.js, Recharts, D3, ggplot, HTML tables ...), or places a
+            chart component on a page. Each with the kind of hit and the lines to look at.
+      NOT NEEDED: everything else (servers, routing, auth, config, build, tests, styles, plain UI parts, vendored
+            code), grouped by reason. These don't need opening to plan a dashboard or a migration.
+  - outputs (.html .png .jpg .svg .pdf, Tableau/Power BI files), and possible index/readme files about the data
 Anything it can't read is listed with the reason; it never stops on a bad file. Big files are sampled.
+The sorting is by pattern, so it can be wrong: a skipped file can be opened when a READ file points to it.
 """
 from __future__ import annotations
 
@@ -20,10 +26,48 @@ import time
 from pathlib import Path
 
 SKIP_DIRS = {"node_modules", ".git", "__pycache__", ".venv", "venv", "env", "site-packages", ".ipynb_checkpoints",
-             ".vite", ".idea", ".vscode", "dist", "build", ".mypy_cache", ".pytest_cache", ".dashboard-agent"}
+             ".vite", ".idea", ".vscode", "dist", "build", ".mypy_cache", ".pytest_cache", ".dashboard-agent",
+             "coverage", ".next", ".nuxt", "out", "target", "bin", "obj", "bower_components"}
 DATA_EXT = {".csv", ".tsv", ".parquet", ".pq", ".xlsx", ".xlsm", ".xls", ".json", ".feather", ".txt"}
-CODE_EXT = {".py", ".ipynb", ".sql", ".r"}
-OUTPUT_EXT = {".html", ".htm", ".png", ".jpg", ".jpeg", ".svg", ".pdf", ".pptx", ".docx"}
+CODE_EXT = {".py", ".ipynb", ".sql", ".r", ".rmd", ".qmd", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte",
+            ".java", ".cs", ".go", ".rb", ".php", ".scala", ".kt", ".sas", ".dax"}
+OUTPUT_EXT = {".html", ".htm", ".png", ".jpg", ".jpeg", ".svg", ".pdf", ".pptx", ".docx", ".twb", ".twbx", ".pbix", ".pbit"}
+
+# What makes code worth reading for a dashboard: the numbers (queries, calculations) and the visuals.
+LOGIC = [
+    # SQL in code: SELECT ... FROM in capitals, or a string that starts with select ... from (not `import Select from`)
+    ("SQL", re.compile(r"\bSELECT\s[\s\S]{1,800}?\bFROM\s|[\"'`]\s*(?i:select)\s[^\"'`]{1,600}?\s(?i:from)\s")),
+    ("calculations", re.compile(r"\.(groupby|merge|pivot_table|pivot|melt|agg|aggregate|resample|rolling|cumsum|pct_change|crosstab)\s*\(")),
+    ("dplyr", re.compile(r"\b(group_by|summari[sz]e|mutate|left_join|inner_join)\s*\(")),
+    ("data access", re.compile(r"\b(read_sql\w*|spark\.sql|cursor\.execute|pd\.read_\w+|dbGetQuery|sqlContext)\b")),
+    ("JS calculations", re.compile(r"\b(d3\.(rollup|rollups|group|sum|mean)|_\.(groupBy|sumBy|meanBy)|groupBy)\s*\(")),
+]
+VISUAL = [
+    ("Plotly", re.compile(r"\bplotly\b|\bpx\.[a-z_]+\(|\bgo\.(Figure|Scatter|Bar|Pie|Heatmap|Indicator)\b|\bplot_ly\(")),
+    ("matplotlib/seaborn", re.compile(r"\bplt\.[a-z_]+\(|\bsns\.[a-z_]+\(|\.plot\(\s*kind=")),
+    ("Altair/Bokeh", re.compile(r"\balt\.Chart\(|\bfrom bokeh|\bbokeh\.plotting")),
+    ("Dash", re.compile(r"\bdcc\.Graph\b|\bdash_table\b|\bDataTable\(")),
+    ("Streamlit", re.compile(r"\bst\.(plotly_chart|line_chart|bar_chart|area_chart|altair_chart|pyplot|metric|dataframe|table|map)\(")),
+    ("ECharts", re.compile(r"\becharts\b|ReactECharts")),
+    ("Chart.js", re.compile(r"\bnew Chart\(|react-chartjs")),
+    ("React charts", re.compile(r"<(LineChart|BarChart|AreaChart|PieChart|ComposedChart|ScatterChart|Victory\w+|Responsive(Line|Bar|Pie)|AgGridReact|DataGrid|Plot)\b|highcharts|\bvega\b|ag-grid")),
+    ("D3", re.compile(r"\bd3\.(select|scale\w*|axis\w*|line|area|arc|pie)\b")),
+    ("ggplot/Shiny", re.compile(r"\bggplot\(|\brenderPlot\w*\(|\bDT::")),
+    ("HTML table", re.compile(r"\.to_html\(|\.style\.(apply|format|background_gradient|highlight)|<table\b")),
+]
+# Never worth reading for planning, whatever they mention
+HARD_SKIP = [
+    ("tests", re.compile(r"(^|/)(tests?|__tests__|spec|e2e|cypress)/|(^|/)test_[^/]*$|_test\.\w+$|\.(test|spec)\.\w+$|(^|/)conftest\.py$")),
+    ("vendored or minified", re.compile(r"\.min\.\w+$|(^|/)(vendor|vendors|third_party|external)/")),
+    ("config and build", re.compile(r"(^|/)(setup|manage|wsgi|asgi|settings|config|conf)\.py$|(^|/)(webpack|vite|rollup|babel|jest|eslint|prettier|tailwind|postcss|next|nuxt|svelte|tsconfig|karma)[^/]*$|\.config\.\w+$|\.d\.ts$|(^|/)(migrations|alembic)/|(^|/)tools/[^/]*\.(m?js|cjs|ts)$", re.I)),
+]
+# Labels for code with nothing worth reading
+SOFT_REASONS = [
+    ("server, routing, auth", re.compile(r"(^|/)(auth|login|middleware|routes?|router|urls|api|server|app|main|index|deploy|docker)[^/]*\.\w+$|(^|/)(auth|middleware|deploy|infra)/", re.I)),
+]
+CONFIG_JSON = re.compile(r"^(package(-lock)?|tsconfig[\w.-]*|jsconfig|composer|bower|lerna|nx|turbo|vercel|netlify|"
+                         r"app|appsettings[\w.-]*|launch|settings|extensions|\.?eslintrc|\.?babelrc|\.?prettierrc)\.json$"
+                         r"|\.config\.json$", re.I)
 INDEX_NAMES = re.compile(r"^(readme|index|data[_ -]?index|data[_ -]?dictionary|catalog|about|notes)\b", re.I)
 SAMPLE_ROWS = 50_000
 BIG_BYTES = 150 * 1024 * 1024
@@ -180,19 +224,103 @@ def code_hints(path: Path) -> dict:
         if path.suffix.lower() == ".ipynb":
             nb = json.loads(path.read_text(encoding="utf-8", errors="replace"))
             cells = nb.get("cells", [])
-            text = "\n".join("".join(c.get("source", [])) for c in cells if c.get("cell_type") == "code")
+            parts, cell_starts, line = [], [], 1   # cell_starts: (first line in the joined text, cell number)
+            for n, c in enumerate(cells, 1):
+                if c.get("cell_type") == "code":
+                    src = "".join(c.get("source", []))
+                    cell_starts.append((line, n))
+                    parts.append(src)
+                    line += src.count("\n") + 1
+            text = "\n".join(parts)
             extra = {"cells": len(cells), "code_cells": sum(1 for c in cells if c.get("cell_type") == "code"),
-                     "has_outputs": any(c.get("outputs") for c in cells)}
+                     "has_outputs": any(c.get("outputs") for c in cells), "_cell_starts": cell_starts}
         else:
             text = path.read_text(encoding="utf-8", errors="replace")
             extra = {"lines": text.count("\n") + 1}
     except Exception as e:
         return {"error": f"{type(e).__name__}: {e}"}
+    roles = classify(path, text, extra)
     refs = sorted(set(m.group(1) for m in DATA_REF.finditer(text)))[:25]
     writes = bool(WRITE_HINT.search(text))
     funcs = re.findall(r"^def\s+(\w+)", text, re.M)[:20] if path.suffix.lower() in (".py", ".ipynb") else []
     imports = sorted(set(re.findall(r"^\s*(?:import|from)\s+([A-Za-z_][\w]*)", text, re.M)))[:20]
-    return {**extra, "mentions_files": refs, "writes_files": writes, "functions": funcs, "imports": imports}
+    return {**extra, **roles, "mentions_files": refs, "writes_files": writes, "functions": funcs, "imports": imports,
+            "_text": text}
+
+
+def _line(text: str, pos: int) -> int:
+    return text.count("\n", 0, pos) + 1
+
+
+def classify(path: Path, text: str, extra: dict) -> dict:
+    """{"logic": [kinds], "visual": [kinds], "hit_lines": [first hit lines]} from patterns in the code."""
+    logic, visual, lines = [], [], set()
+    if path.suffix.lower() in (".sql", ".dax", ".sas"):
+        logic.append(path.suffix.lower()[1:].upper() + " file")
+    for kind, rx in LOGIC:
+        hits = list(rx.finditer(text))[:6]
+        if hits:
+            logic.append(f"{kind} x{len(hits)}" if len(hits) > 1 else kind)
+            lines.update(_line(text, m.start()) for m in hits)
+    for kind, rx in VISUAL:
+        hits = list(rx.finditer(text))[:6]
+        if hits:
+            visual.append(kind)
+            lines.update(_line(text, m.start()) for m in hits)
+    if extra.get("has_outputs"):
+        visual.append("notebook outputs")
+    return {"logic": logic, "visual": visual, "hit_lines": sorted(lines)[:12]}
+
+
+# An integrated dashboard (v2/v3 layout): only its own pieces carry over; the rest comes fresh from the starter
+INTEGRATED_OWN = re.compile(r"^(Analysis/(?!server|check|precompute)[^/]+\.py|Src/Sections/(?!index\.)[^/]+\.jsx?|Pipeline/(?!run_all|_)[^/]+\.py)$")
+
+
+def sort_code(code: list[dict], root: Path) -> bool:
+    """Mark each code entry read (with why) or not needed (with a reason). Returns True for an integrated dashboard.
+
+    A file that places a chart component on a page (a visual file's name used as a tag, e.g. <TrendChart) is read:
+    that's where the visual's title and data are chosen. A chart component placed by two or more files is a building
+    block (a generic wrapper), not a visual of its own, so it isn't."""
+    integrated = (root / "dashboard.config.json").exists() and (root / "Analysis" / "Shared" / "registry.py").exists()
+    ui = (".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte")
+    texts = {e["file"]: e.pop("_text", "") for e in code}
+    rel = {f: f.replace("\\", "/") for f in texts}
+    hard = {f: next((r for r, rx in HARD_SKIP if rx.search(rel[f])), None) for f in texts}
+    components = {Path(e["file"]).stem for e in code
+                  if e.get("visual") and not hard[e["file"]] and Path(e["file"]).suffix.lower() in ui
+                  and Path(e["file"]).stem[:1].isupper()}
+    tag = re.compile(r"<(" + "|".join(map(re.escape, sorted(components))) + r")\b") if components else None
+    places, users = {}, {}
+    for f, text in texts.items():
+        if tag and not hard[f]:
+            used = sorted(set(tag.findall(text)) - {Path(f).stem})
+            places[f] = used
+            for c in used:
+                users.setdefault(c, []).append(f)
+    for e in code:
+        f = e["file"]
+        if integrated:
+            own = bool(INTEGRATED_OWN.match(rel[f]))
+            e["read"], e["why"] = own, None if own else "the app itself (a new project gets it fresh from the starter)"
+            continue
+        used = places.get(f, [])
+        if e.get("error"):
+            e["read"], e["why"] = False, "couldn't read"
+        elif hard[f]:
+            e["read"], e["why"] = False, hard[f]
+        elif len(users.get(Path(f).stem, [])) >= 2 and not e.get("logic"):
+            e["read"], e["why"] = False, "chart building blocks (the files that place them are listed to read)"
+        elif e.get("logic") or e.get("visual") or used:
+            e["read"], e["why"] = True, None
+            if used:
+                e["visual"] = e.get("visual", []) + [f"places {', '.join(used[:5])}"]
+                e["hit_lines"] = sorted(set(e.get("hit_lines", [])) |
+                                        {_line(texts[f], m.start()) for m in tag.finditer(texts[f])})[:12]
+        else:
+            e["read"] = False
+            e["why"] = next((r for r, rx in SOFT_REASONS if rx.search(rel[f])), "no queries, calculations or visuals found")
+    return integrated
 
 
 def main() -> int:
@@ -237,6 +365,9 @@ def main() -> int:
             report["index_files"].append({"file": rel, "size": human(size)})
             if ext not in (".csv", ".xlsx"):
                 continue
+        if ext == ".json" and CONFIG_JSON.search(f.name):   # app settings, not data
+            report["other"].append({"file": rel, "size": human(size)})
+            continue
         if ext in DATA_EXT:
             entry = {"file": rel, "size": human(size)}
             if size == 0:
@@ -270,12 +401,16 @@ def main() -> int:
         else:
             report["other"].append({"file": rel, "size": human(size)})
 
+    report["integrated_dashboard"] = sort_code(report["code"], root)
     if a.json:
         print(json.dumps(report, indent=2, default=str))
         return 0
 
     p = print
     p(f"# Inventory of {root}")
+    if report["integrated_dashboard"]:
+        p("This is an integrated dashboard project (v2/v3 layout). Moving it: dashboard-new references/existing-work.md,"
+          " \"Older integrated dashboards\". Only its own cards, Analysis pages and Pipeline scripts are listed to read.")
     if truncated:
         p(f"(stopped after {a.max_files} files; run on a subfolder or raise --max-files for the rest)")
     if not have_pandas:
@@ -306,19 +441,34 @@ def main() -> int:
             if c.get("note"):
                 bits.append(c["note"])
             p(f"- {c['name']}: " + "; ".join(b for b in bits if b))
-    p(f"\n## Scripts and notebooks ({len(report['code'])})")
-    for e in report["code"]:
-        if e.get("error"):
-            p(f"- {e['file']}: PROBLEM {e['error']}")
-            continue
+    to_read = [e for e in report["code"] if e.get("read")]
+    p(f"\n## Code to read ({len(to_read)} of {len(report['code'])} code files): queries, calculations, visuals")
+    p("Open only these, and in them only the parts around the lines shown.")
+    for e in to_read:
         size_bit = f"{e['cells']} cells" if "cells" in e else f"{e.get('lines', '?')} lines"
         p(f"- {e['file']} ({size_bit}){' - writes files' if e.get('writes_files') else ''}")
+        if e.get("logic"):
+            p(f"  numbers: {', '.join(e['logic'])}")
+        if e.get("visual"):
+            p(f"  visuals: {', '.join(e['visual'])}")
+        if e.get("hit_lines"):
+            if e.get("_cell_starts"):   # a notebook: say which cells, not lines of the joined code
+                cells = sorted({next(n for start, n in reversed(e["_cell_starts"]) if start <= ln) for ln in e["hit_lines"]})
+                p(f"  look at cells: {', '.join(map(str, cells))}")
+            else:
+                p(f"  look at lines: {', '.join(map(str, e['hit_lines']))}")
         if e.get("mentions_files"):
             p(f"  mentions: {', '.join(e['mentions_files'])}")
         if e.get("functions"):
             p(f"  functions: {', '.join(e['functions'])}")
-        if e.get("imports"):
-            p(f"  imports: {', '.join(e['imports'])}")
+    not_needed = [e for e in report["code"] if not e.get("read")]
+    if not_needed:
+        p(f"\n## Code not needed ({len(not_needed)}): don't open unless a file above calls into one")
+        groups: dict = {}
+        for e in not_needed:
+            groups.setdefault(e["why"], []).append(e["file"])
+        for why, names in groups.items():
+            p(f"- {why} ({len(names)}): {', '.join(names[:12])}{' ...' if len(names) > 12 else ''}")
     p(f"\n## Outputs ({len(report['outputs'])})")
     for e in report["outputs"]:
         p(f"- {e['file']} ({e['size']})")
