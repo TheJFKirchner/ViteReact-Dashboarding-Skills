@@ -1,28 +1,21 @@
 # Helpers (subagents)
 
-Self-contained jobs go to helpers. Each gets a short brief (its own file, `<...>` parts filled in) and reports
-back; you check what matters and talk it through with the user.
+Helpers do the copying work: one table or one tab each. Porting is copying, not new analysis, so a small model
+(Haiku) does it. Each helper gets a brief with exactly the files it may open, and stops after one check.
 
-| Helper | Model | Tools | One per | Finish line | Brief |
-|---|---|---|---|---|---|
-| Survey | small (e.g. Haiku) | read-only (e.g. Explore) | folder | a briefing | dashboard-new: `references/survey.md` |
-| Data | mid-size (e.g. Sonnet) | can edit | table | its Pipeline script passes `--try` and matches the old output | `helper-data.md` |
-| Card | mid-size (e.g. Sonnet) | can edit | page | its cards pass `npm run check` and match the old output | `helper-cards.md` |
+| Helper | Model | One per | Done when | Brief |
+|---|---|---|---|---|
+| Inventory | Haiku, read-only | folder of existing work | `PLAN.md` written | dashboard-new: `references/plan.md` |
+| Pipeline | Haiku, can edit | table | its script passes `--try` | `helper-pipeline.md` |
+| Sections | Haiku, can edit | tab | `npm run check` passes | `helper-sections.md` |
 
-**When to use them.** The survey helper is worth it whenever there's a folder to understand. Data and card helpers
-earn their keep when there are several tables or pages, or existing work to port and compare. For one table or a
-card or two, doing it yourself is quicker than writing the brief.
-
-**Order matters.** Data helpers run first (cards need the data). Then you run `npm run pipeline`, add the filters,
-and make every card's shell with `npm run new-card`, because that edits the shared card list. Only then start the
-card helpers, one per page, so no two helpers ever edit the same file.
-
-**Give them the plan, not the conversation.** Each brief should carry what the user decided (the row from the plan
-table, the rules to keep, which old output to match). A helper only knows what the brief says.
-
-**Give them files, not folders.** Each brief lists exactly what the helper may open. Send the quoted brief only,
-never the skill folder to look around in: a small model told "the skill is at X" reads every file in it, and
-almost all of them are app code it only needs to run.
-
-**Check what comes back.** Reports can be confidently wrong. Spot-check the numbers and rules that matter, look at
-the dashboard yourself, and tell the user plainly what matched and what didn't.
+## Rules
+- **Order:** pipeline helpers first. Then you run `npm run pipeline`, add the filters, and make every section's
+  shell with `npm run new-section`. Then the section helpers, one per tab, so no two helpers edit the same file.
+- **Give them the plan rows, not the conversation.** A helper only knows what its brief says: its rows of
+  `PLAN.md`, the old code to copy, and the rules to keep.
+- **Files, not folders.** Never hand a helper a skill folder or a whole project to look around in.
+- **One check each.** No extra testing, no comparing every filter choice. If the user wants the old and new
+  numbers compared, that's a separate step at the end.
+- **Use Sonnet only** for new analysis (nothing to copy), or when Haiku fails the same job twice.
+- **For one table or one section,** doing it yourself is quicker than writing a brief.

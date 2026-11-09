@@ -109,7 +109,8 @@ def meta():
     if not m["tables"]:
         return JSONResponse({"error": "No data yet. Run python Pipeline/run_all.py, or put .parquet/.csv files in Data/Current", "pipeline": pipeline.public()}, status_code=503)
     options = tables.filter_options(m)
-    filters = {n: {"label": s.get("label", n), "column": s.get("column", n), "options": options.get(n, [tables.ALL])}
+    filters = {n: {"label": s.get("label", n), "column": s.get("column", n), "options": options.get(n, [tables.ALL]),
+                   "tab": s.get("tab"), "section": s.get("section")}
                for n, s in tables.specs("filters").items()}
     return {
         "filters": filters,

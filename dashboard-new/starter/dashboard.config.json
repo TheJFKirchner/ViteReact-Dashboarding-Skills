@@ -5,7 +5,7 @@
   "theme": "house",
   "staleDays": 7,
   "filters": {
-    "_note": "Fast filters: every value is already in the loaded tables; the Analysis server narrows rows, instantly, per reader. column = the table column they match. Any filter can be fast or slow: make it slow (parameters) only when changing it means querying the source again.",
+    "_note": "Fast filters: every value is already in the loaded tables; the Analysis server narrows rows, instantly, per reader. column = the table column they match. Each lives at one level: no tab/section = the whole dashboard (above the tabs), \"tab\": \"<page>\" = that tab, \"section\": \"<section id>\" = that section's header. Any filter can be fast or slow: make it slow (parameters) only when changing it means querying the source again.",
     "region": {
       "label": "Region",
       "column": "region"

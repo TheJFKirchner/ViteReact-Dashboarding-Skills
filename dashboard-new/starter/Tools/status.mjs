@@ -1,5 +1,5 @@
 // npm run status [-- --json]
-// A read-only map of this dashboard: pages, cards (and what each reads), tables, filters, reports, and the
+// A read-only map of this dashboard: pages, sections (and what each reads), tables, filters, reports, and the
 // check result. Use it to get oriented before changing anything. Changes nothing.
 // If the cards can't be loaded (a broken file), it still lists what it can from the folders.
 import fs from 'node:fs';
@@ -47,7 +47,7 @@ if (p) {
       built: !(fs.existsSync(path.join(ROOT, 'Src', 'Sections', `${id}.jsx`)) && /Not built yet\./.test(fs.readFileSync(path.join(ROOT, 'Src', 'Sections', `${id}.jsx`), 'utf8'))),
     };
   });
-  out.filters = Object.fromEntries(Object.entries(p.FILTERS).map(([k, f]) => [k, { label: f.label, column: f.column, values: f.options.filter((o) => o !== p.ALL) }]));
+  out.filters = Object.fromEntries(Object.entries(p.FILTERS).map(([k, f]) => [k, { label: f.label, column: f.column, level: f.section ? `section ${f.section}` : f.tab ? `tab ${f.tab}` : 'dashboard', values: f.options.filter((o) => o !== p.ALL) }]));
   out.parameters = p.parameters ?? {};
   out.check = { errors: result.errors, warnings: result.warnings };
 }
@@ -96,11 +96,11 @@ line(`${out.project.title ?? '(untitled)'}   theme ${out.project.theme}, data se
 line();
 if (out.pages.length) {
   line('Pages');
-  for (const pg of out.pages) line(`  ${pg.id.padEnd(16)} ${pg.label} (${pg.cards.length} card${pg.cards.length === 1 ? '' : 's'})`);
+  for (const pg of out.pages) line(`  ${pg.id.padEnd(16)} ${pg.label} (${pg.cards.length} section${pg.cards.length === 1 ? '' : 's'})`);
   line();
 }
-line(`Cards (${out.cards.length}, in page order)`);
-if (!out.cards.length) line('  none yet: npm run new-card -- <name>');
+line(`Sections (${out.cards.length}, in page order)`);
+if (!out.cards.length) line('  none yet: npm run new-section -- <name>');
 for (const c of out.cards) {
   const flags = [c.size === 'half' ? 'half' : null, c.built ? null : 'NOT BUILT', c.problems.length ? `${c.problems.length} problem(s)` : null].filter(Boolean).join(', ');
   line(`  ${c.id.padEnd(28)} ${String(c.title).slice(0, 40).padEnd(40)} ${(c.page ?? '').padEnd(12)} ${String(c.chart).padEnd(8)} ${flags}`);
@@ -112,15 +112,15 @@ if (!out.tables.length) line('  none yet: npm run pipeline, or put .parquet/.csv
 for (const t of out.tables) {
   line(`  ${t.name.padEnd(28)} ${t.rows ?? '?'} rows${t.grain ? `, ${t.grain}` : ''}${t.as_of ? `, as of ${t.as_of}` : ''}${t.script ? `, from Pipeline/${t.script}` : ''}`);
   if (t.columns.length) line(`  ${''.padEnd(28)} columns: ${t.columns.join(', ')}`);
-  if (t.usedBy) line(`  ${''.padEnd(28)} used by: ${t.usedBy.join(', ') || 'no card'}${t.filterColumns?.length ? `; filterable by ${t.filterColumns.join(', ')}` : ''}`);
+  if (t.usedBy) line(`  ${''.padEnd(28)} used by: ${t.usedBy.join(', ') || 'no section'}${t.filterColumns?.length ? `; filterable by ${t.filterColumns.join(', ')}` : ''}`);
 }
 line();
 const fnames = Object.keys(out.filters);
-line(`Filters: ${fnames.length ? fnames.map((k) => `${k} (${out.filters[k].values.length} values)`).join(', ') : 'none'}`);
+line(`Filters: ${fnames.length ? fnames.map((k) => `${k} (${out.filters[k].level}, ${out.filters[k].values.length} values)`).join(', ') : 'none'}`);
 const pnames = Object.keys(out.parameters);
 if (pnames.length) line(`Refresh settings: ${pnames.join(', ')}`);
 line(`Pipeline scripts: ${out.pipeline.join(', ') || 'none'}`);
-line(`Reports: ${out.reports.length ? out.reports.map((r) => `${r.name} (${r.cards.length} cards${r.missing.length ? `, MISSING ${r.missing.join(', ')}` : ''})`).join('; ') : 'none'}`);
+line(`Reports: ${out.reports.length ? out.reports.map((r) => `${r.name} (${r.cards.length} sections${r.missing.length ? `, MISSING ${r.missing.join(', ')}` : ''})`).join('; ') : 'none'}`);
 line();
 if (out.check) {
   line(`Check: ${out.check.errors.length} error(s), ${out.check.warnings.length} warning(s)`);

@@ -1,6 +1,6 @@
 # Getting data in
 
-Cards read their data from `Data/Current/`. Each `.parquet` or `.csv` file there is one table, named after the
+Sections read their data from `Data/Current/`. Each `.parquet` or `.csv` file there is one table, named after the
 file (`Claims Monthly.csv` becomes `claims_monthly`). How the files get there is up to you.
 
 ## Ways to fill it
@@ -39,29 +39,43 @@ filter. The difference isn't what the filter is about. It's one question: **does
 source again?**
 
 - **Fast** (`filters` in `dashboard.config.json`): every value is already in the loaded tables, in a column.
-  Changing it narrows rows that are already in `Data/Current`, so cards update at once. Options are read from the
+  Changing it narrows rows that are already in `Data/Current`, so sections update at once. Options are read from the
   data. Each reader has their own choice, and it's kept in the page's link.
 - **Slow** (`parameters` in `dashboard.config.json`): the data for one value has to be pulled on its own. Changing
   it re-runs the Pipeline scripts with the new value, which takes as long as the pull does. Options are listed in
-  the config. There's one current value for everyone using that copy of the dashboard.
+  the config. There's one current value for everyone using that copy of the dashboard, and it always sits with
+  the dashboard-wide filters (it changes the data under every tab).
 
 | Make it slow when | Otherwise fast |
 |---|---|
 | All values together are too big to keep loaded, even summarized (e.g. pull one region of a huge claims table at a time) | Summarized, all values fit (millions of rows are fine) |
 | Each value is a separate source: a month-end snapshot, a different database, a scenario run | One table holds every value in a column |
 | The query itself needs the value (a stored procedure argument, an API call per value) | The value is just a `WHERE` on rows you already have |
-| The number for a value can't be worked out from loaded rows (a re-run model, a recalculated allocation) | Cards can add up or filter the loaded rows |
+| The number for a value can't be worked out from loaded rows (a re-run model, a recalculated allocation) | Sections can add up or filter the loaded rows |
 
 Prefer fast when it's possible: it's instant and doesn't affect other readers. The two can work together, e.g. a slow
 `year` decides which year is pulled and a fast `region` narrows it.
 
 ### A fast filter
-One entry per column:
+One entry per column, at one level:
 ```json
-"filters": { "region": { "label": "Region", "column": "region" } }
+"filters": {
+  "region":     { "label": "Region", "column": "region" },
+  "product":    { "label": "Product", "column": "product", "tab": "costs" },
+  "claim_type": { "label": "Claim type", "column": "claim_type", "section": "s4_paid_by_type" }
+}
 ```
-A new project starts with none; add them once the data is in. `npm run status` shows which tables have each
-filter's column. In a card, `t.filters["region"]` is the reader's choice ("All" when unfiltered).
+| Level | Shown | Applies to |
+|---|---|---|
+| No `tab` or `section`: the whole dashboard | above the tabs | every section |
+| `"tab": "<tab id>"` | under the tab names, on that tab | that tab's sections |
+| `"section": "<section id>"` | in that section's header | that section |
+
+A filter narrows only the sections in its reach whose tables have its column. Put each filter where the reader
+expects it: something every page cares about goes on the dashboard, and a breakdown only one chart needs goes on
+that section. A new project starts with none; add them once the data is in. `npm run status` shows each filter's
+level and which tables have its column. In a section, `t.filters["region"]` is the reader's choice ("All" when
+unfiltered).
 
 ### A slow filter
 Under `parameters`, either a fixed list of choices (any kind of value; the default is the first one unless given):
@@ -73,10 +87,10 @@ or the last few month ends, counted back from today:
 "as_of": { "label": "Data as of", "type": "month_end", "default": "latest", "options": { "month_ends": 12 } }
 ```
 In a Pipeline script, `params()["region"]` gives the chosen value (a date for `month_end`, text otherwise); the script
-uses it in its query. In a card, `t.params["region"]` gives it too, handy for captions. A fixed list needs updating by
+uses it in its query. In a section, `t.params["region"]` gives it too, handy for captions. A fixed list needs updating by
 hand when a new value appears (the app can't list values without querying the source).
 
-When a reader changes one, the app asks first, re-runs the pipeline and reloads. The cards keep showing the old data
+When a reader changes one, the app asks first, re-runs the pipeline and reloads. The sections keep showing the old data
 until the new pull has worked; if it fails, nothing changes.
 
 **Where the value is recorded:** `Data/Current/manifest.json`. `"params"` holds every value the loaded data was
@@ -99,7 +113,7 @@ survey helper reads that first. Anything works; a table like this is easy to kee
 plus a line on how things connect (raw file → script → output). If there isn't one, the survey can draft it.
 
 ## Tips on shaping tables
-- Summarize to the level the cards need (e.g. monthly totals by region instead of every claim line). Pages stay quick.
+- Summarize to the level the sections need (e.g. monthly totals by region instead of every claim line). Pages stay quick.
 - Keep different levels in different tables. A count that belongs to a whole claim, repeated on every line of
   that claim, gets added up too many times.
 - A fast filter works on every table that has a column with its name. Use the same column name and values

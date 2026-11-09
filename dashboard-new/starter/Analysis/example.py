@@ -1,6 +1,6 @@
 """EXAMPLE cards (summary KPI, revenue trend) on the synthetic sales_monthly table. Replace with real ones."""
 from Shared.periods import change, distinct, last_periods, month_label, sum_by, top_key, total
-from Shared.registry import card
+from Shared.registry import section
 
 
 def t12(df, offset=0):
@@ -8,7 +8,7 @@ def t12(df, offset=0):
     return last_periods(df, 12, offset=offset)
 
 
-@card("s1_summary", tables=["sales_monthly"], filters=["region"])
+@section("s1_summary", tables=["sales_monthly"])
 def summary(t):
     sales = t.sales_monthly
     months = distinct(sales, "month")
@@ -24,7 +24,7 @@ def summary(t):
     }
 
 
-@card("s2_revenue_trend", tables=["sales_monthly"], filters=["region"])
+@section("s2_revenue_trend", tables=["sales_monthly"])
 def revenue_trend(t):
     sales = t.sales_monthly
     months = distinct(sales, "month")

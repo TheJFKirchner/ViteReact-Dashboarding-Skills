@@ -1,13 +1,13 @@
 """Make a new dashboard project from this skill's starter.
 
     python <skill>/tools/setup.py <new project folder> --title "Claims dashboard"
-        [--keep-examples]   keep the two example cards and their sample data (handy for a first look)
+        [--keep-examples]   keep the two example sections and their sample data (handy for a first look)
         [--no-install]      skip npm install
 
 What it does, and nothing else:
   - copies starter/ and themes/ (as Themes/) into the folder, which must be new or empty
     (dot-folders like .git or .claude are fine)
-  - removes the example cards, their numbers, sample-data script and report (unless --keep-examples)
+  - removes the example sections, their numbers, sample-data script and report (unless --keep-examples)
   - sets the title, picks a free port for the data server, and records where the design agent lives
     (the dashboard-work skill next to this one, or the standard install)
   - runs npm install, checks the Python packages, and runs npm run check
@@ -40,9 +40,9 @@ EXAMPLES = [
     "Pipeline/example_sales_monthly.py",
     "Reports/example.json",
 ]
-EMPTY_INDEX = """// The cards in the order they appear, and the pages (tabs) if there are any.
-// npm run new-card -- <name> adds to these lists; editing by hand is fine too.
-// One page: leave `tabs` empty and give cards no meta.tab. Pages: list them here and give each card a meta.tab.
+EMPTY_INDEX = """// The sections in the order they appear, and the pages (tabs) if there are any.
+// npm run new-section -- <name> adds to these lists; editing by hand is fine too.
+// One page: leave `tabs` empty and give sections no meta.tab. Pages: list them here and give each section a meta.tab.
 
 export const tabs = [];
 
@@ -81,7 +81,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Make a new dashboard project from the starter.")
     ap.add_argument("folder", help="the new project folder (created if missing; must be empty)")
     ap.add_argument("--title", default=None, help="dashboard title (default: the folder name)")
-    ap.add_argument("--keep-examples", action="store_true", help="keep the example cards and sample data")
+    ap.add_argument("--keep-examples", action="store_true", help="keep the example sections and sample data")
     ap.add_argument("--no-install", action="store_true", help="skip npm install and the check")
     a = ap.parse_args()
 
@@ -121,7 +121,7 @@ def main() -> int:
         for rel in EXAMPLES:
             (dest / rel).unlink(missing_ok=True)
         (dest / "Src" / "Sections" / "index.js").write_text(EMPTY_INDEX, encoding="utf-8")
-        say("  removed the example cards (add your own with: npm run new-card -- <name>)")
+        say("  removed the example sections (add your own with: npm run new-section -- <name>)")
 
     # ---- config
     cfg_path = dest / "dashboard.config.json"
@@ -132,7 +132,8 @@ def main() -> int:
         cfg["dataSource"] = ""
         # the example's "region" filter belongs to the sample data; real filters are added once the data is known
         cfg["filters"] = {"_note": "Fast filters: every value is already in the loaded tables, e.g. \"region\": {\"label\": \"Region\", \"column\": \"region\"}. "
-                                   "They apply to every table with that column. A filter whose data must be re-queried goes under parameters (slow). "
+                                   "Each lives at one level: no tab/section = the whole dashboard (above the tabs); \"tab\": \"<page>\" = that tab; \"section\": \"<section id>\" = that section. "
+                                   "A filter whose data must be re-queried goes under parameters (slow, always dashboard-wide). "
                                    "See the dashboard-work skill, references/data.md."}
     port = free_port(8765)
     cfg.setdefault("server", {})["port"] = port
@@ -177,7 +178,7 @@ def main() -> int:
         say(f"TO DO: {p}")
     say("Next:")
     say("  - data: put .parquet/.csv files in Data/Current, or write Pipeline scripts (dashboard-work: references/data.md)")
-    say("  - cards: npm run new-card -- <name> --page <page> --chart echarts|table|kpi")
+    say("  - sections: npm run new-section -- <name> --page <page> --chart echarts|table|kpi")
     say("  - look:  npm run dev   (or npm run dev:agent for the design agent)")
     return 0
 

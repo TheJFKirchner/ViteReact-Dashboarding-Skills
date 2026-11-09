@@ -4,13 +4,14 @@ import Select from './Select.jsx';
 
 /** Fast filters (instant: the Analysis server recomputes the cards from loaded data) and slow filters, the config's
  *  "parameters" (re-query the source: changing one asks first, then re-runs the pipeline). Locked report filters
- *  are excluded by the caller. */
-export default function FilterBar({ names, meta, params = [], onParam, busy }) {
+ *  are excluded by the caller. Used twice: the dashboard-wide bar (above the tabs, with the slow filters) and the
+ *  current tab's bar (className "tab-level"). Section filters sit in the section's header (SectionFrame). */
+export default function FilterBar({ names, meta, params = [], onParam, busy, className = '' }) {
   const { values, setFilter } = useFilters();
   const text = useShellText();
   if (!names.length && !params.length) return null;
   return (
-    <div className="filter-bar">
+    <div className={`filter-bar ${className}`.trim()}>
       {names.map((n) => (
         <Select key={n} slot={`filter:${n}`} label={text(`filter:${n}`, meta.filters[n].label)} value={values[n]} options={meta.filters[n].options} onChange={(v) => setFilter(n, v)} />
       ))}

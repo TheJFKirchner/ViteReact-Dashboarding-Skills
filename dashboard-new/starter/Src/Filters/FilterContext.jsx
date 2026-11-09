@@ -3,7 +3,8 @@
 //                (options come from the data). State here, per reader, mirrored in the URL hash (App.jsx HashSync).
 //   "parameters" slow: the data for a value has to be pulled on its own; changing one re-runs the pipeline. Its
 //                value is server state (Data/Current/manifest.json "params"), shared by everyone.
-// Cards opt in to fast filters in their Analysis function: @card(..., filters=[...]).
+// A fast filter sits at one level: the whole dashboard, one tab ("tab") or one section ("section"). Each section
+// gets the filters in its reach whose column its tables have (Analysis/Shared/registry.py).
 import { createContext, useContext, useMemo, useState } from 'react';
 
 export { ALL } from '../Lib/source.js';

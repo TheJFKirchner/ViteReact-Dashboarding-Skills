@@ -31,6 +31,8 @@ body {
   position: sticky; top: 0; z-index: 5;
 }
 .control { display: flex; flex-direction: column; gap: 4px; }
+.filter-bar.tab-level { position: static; margin-top: 12px; }
+.section-filters { display: flex; flex-wrap: wrap; gap: 12px; margin-left: auto; font-size: 0.9em; }
 .control-label { font-size: 0.85em; color: var(--text-muted); }
 select {
   font: inherit; color: var(--text); background: var(--background);

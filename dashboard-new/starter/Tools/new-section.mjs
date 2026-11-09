@@ -1,17 +1,18 @@
-// npm run new-card -- <name> [options]
-// Makes the three pieces of a new card as empty shells, so it shows "Not built yet" and npm run check passes:
-//   Src/Sections/s<N>_<name>.jsx       the look (title, note, drawing)
-//   Analysis/<page>.py                 the numbers (a function tagged @card, added to the page's file)
+// npm run new-section -- <name> [options]
+// Makes the three pieces of a new section as empty shells, so it shows "Not built yet" and npm run check passes:
+//   Src/Sections/s<N>_<name>.jsx       the look (title, note, one or more charts or tables)
+//   Analysis/<page>.py                 the numbers (a function tagged @section, added to the page's file)
 //   Src/Sections/index.js              its place (import + list entry; a new page is added to `tabs`)
-// Never overwrites anything: stops if the card already exists.
+// Never overwrites anything: stops if the section already exists.
+// Filters aren't chosen here: where each filter lives in dashboard.config.json (dashboard, tab or section)
+// decides which sections it applies to.
 //
 // Options:
-//   --title "Paid by region"    card title (default: from the name)
+//   --title "Paid by region"    section title (default: from the name)
 //   --page costs                the page (tab) it goes on, and the Analysis file its numbers go in
-//   --chart echarts             echarts (default) | plotly | table | kpi | text
-//   --size half                 half width (sits next to another half card)
+//   --chart echarts             what the shell starts with: echarts (default) | plotly | table | kpi | text
+//   --size half                 half width (sits next to another half section)
 //   --tables claims_monthly     tables it reads (comma-separated; must be in Data/Current)
-//   --filters region,product    dashboard filters that apply (default: all of them; "none" for none)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +24,7 @@ const ANALYSIS = path.join(ROOT, 'Analysis');
 const CHARTS = { echarts: 'echarts', plotly: 'plotly', table: 'none', kpi: 'none', text: 'none' };
 
 function fail(msg) {
-  console.log(`new-card: ${msg}`);
+  console.log(`new-section: ${msg}`);
   process.exit(1);
 }
 
@@ -55,11 +56,11 @@ const indexSrc = read(INDEX);
 if (!indexSrc) fail('Src/Sections/index.js not found (run this inside a dashboard project)');
 const sectionFiles = fs.readdirSync(SECTIONS).filter((f) => /^s\d+_.*\.jsx$/.test(f) && !f.includes('.agent-preview.'));
 const analysisFiles = fs.readdirSync(ANALYSIS).filter((f) => f.endsWith('.py'));
-const analysisIds = analysisFiles.flatMap((f) => [...read(path.join(ANALYSIS, f)).matchAll(/@card\(\s*["'](s\d+_[a-z0-9_]+)["']/g)].map((m) => m[1]));
+const analysisIds = analysisFiles.flatMap((f) => [...read(path.join(ANALYSIS, f)).matchAll(/@(?:card|section)\(\s*["'](s\d+_[a-z0-9_]+)["']/g)].map((m) => m[1]));
 const usedIds = new Set([...sectionFiles.map((f) => f.replace(/\.jsx$/, '')), ...analysisIds]);
 const usedNumbers = new Set([...usedIds].map((id) => Number(/^s(\d+)_/.exec(id)[1])));
 
-// ---- the card id
+// ---- the section id
 let id = positional[0];
 if (!/^s\d+_[a-z0-9_]+$/.test(id)) {
   const name = slug(id);
@@ -68,8 +69,8 @@ if (!/^s\d+_[a-z0-9_]+$/.test(id)) {
   id = `s${next}_${name}`;
 }
 const number = Number(/^s(\d+)_/.exec(id)[1]);
-if (usedIds.has(id)) fail(`${id} already exists (Src/Sections/${id}.jsx or an @card("${id}") in Analysis/)`);
-if (usedNumbers.has(number)) fail(`the number s${number} is already used by another card; leave the number off and one is picked`);
+if (usedIds.has(id)) fail(`${id} already exists (Src/Sections/${id}.jsx or an @section("${id}") in Analysis/)`);
+if (usedNumbers.has(number)) fail(`the number s${number} is already used by another section; leave the number off and one is picked`);
 const shortName = id.replace(/^s\d+_/, '');
 const title = opts.title && opts.title !== 'true' ? opts.title : shortName.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
@@ -86,7 +87,7 @@ if (tabIds.length) {
   tab = page ?? tabIds[0];
   if (!tabIds.includes(tab)) addTab = tab;
 } else if (page) {
-  if (hasCards) notes.push(`this dashboard has one page (no tabs), so the card goes on it; "${page}" only names its Analysis file. To split into pages, see the dashboard-work skill, references/organizing.md.`);
+  if (hasCards) notes.push(`this dashboard has one page (no tabs), so the section goes on it; "${page}" only names its Analysis file. To split into pages, see the dashboard-work skill, references/organizing.md.`);
   else (tab = page), (addTab = page);
 }
 const analysisName = page ?? tab ?? 'overview';
@@ -100,10 +101,7 @@ try {
 } catch (e) {
   fail(`dashboard.config.json is not valid JSON: ${e.message}`);
 }
-const allFilters = Object.keys(config.filters ?? {}).filter((k) => !k.startsWith('_'));
-const filters = opts.filters === 'none' ? [] : opts.filters ? list(opts.filters) : allFilters;
-const unknown = filters.filter((f) => !allFilters.includes(f));
-if (unknown.length) fail(`filter(s) ${unknown.join(', ')} not in dashboard.config.json "filters" (${allFilters.join(', ') || 'none defined'})`);
+if (opts.filters) notes.push('--filters is ignored: a filter applies by where it lives in dashboard.config.json (no "tab"/"section" = whole dashboard, "tab": "<page>", "section": "<section id>")');
 const tables = list(opts.tables).map(slug);
 const manifest = (() => {
   try {
@@ -115,11 +113,11 @@ const manifest = (() => {
 const dataFiles = fs.existsSync(path.join(ROOT, 'Data', 'Current')) ? fs.readdirSync(path.join(ROOT, 'Data', 'Current')).map((f) => slug(f.replace(/\.(parquet|csv)$/i, ''))) : [];
 for (const t of tables) if (!manifest[t] && !dataFiles.includes(t)) notes.push(`table "${t}" isn't in Data/Current yet; npm run check will say so until it is.`);
 
-// ---- the card file
+// ---- the section file
 const pyList = (xs) => `[${xs.map((x) => JSON.stringify(x)).join(', ')}]`;
 const metaLine = `export const meta = { id: '${id}', title: ${JSON.stringify(title)}${tab ? `, tab: '${tab}'` : ''}, library: '${CHARTS[chart]}'${opts.size === 'half' ? ", size: 'half'" : ''} };`;
 const hints = {
-  echarts: "Draw with ChartECharts (see dashboard-work: references/cards.md): build an ECharts option from data, colors from fx().",
+  echarts: "Draw with ChartECharts (see dashboard-work: references/sections.md): build an ECharts option from data, colors from fx().",
   plotly: "Draw with ChartPlotly (../Components/ChartPlotly.jsx), e.g. for box plots or histograms.",
   table: 'A plain <table className="data">; cells can use className "good" / "bad".',
   kpi: 'A row of KpiTile (../Components/KpiTile.jsx) inside <div className="kpis">.',
@@ -128,7 +126,7 @@ const hints = {
 const jsx = `// Numbers: Analysis/${analysisName}.py (${shortName}). ${hints[chart]}
 ${metaLine}
 
-// The note above the card. Refer to numbers by name, e.g. {total_paid|money}. Leave empty for no note.
+// The note above the section. Refer to numbers by name, e.g. {total_paid|money}. Leave empty for no note.
 export const commentary = \`\`;
 
 export default function Section({ data, metrics }) {
@@ -139,18 +137,18 @@ export default function Section({ data, metrics }) {
 // ---- the Analysis function
 let analysisSrc = read(analysisFile);
 const defNames = new Set([...analysisSrc.matchAll(/^def\s+([A-Za-z_]\w*)/gm)].map((m) => m[1]));
-let fnName = /^[a-z_]/.test(shortName) ? shortName : `card_${shortName}`;
+let fnName = /^[a-z_]/.test(shortName) ? shortName : `section_${shortName}`;
 for (let i = 2; defNames.has(fnName); i++) fnName = `${shortName}_${i}`;
 const header = analysisSrc
   ? ''
-  : `"""${analysisName.replace(/_/g, ' ')}: the numbers for this page's cards (one function per card)."""\nfrom Shared.registry import card\n`;
-if (analysisSrc && !/from\s+Shared\.registry\s+import[^\n]*\bcard\b/.test(analysisSrc)) analysisSrc = `from Shared.registry import card\n${analysisSrc}`;
+  : `"""${analysisName.replace(/_/g, ' ')}: the numbers for this page's sections (one function per section)."""\nfrom Shared.registry import section\n`;
+if (analysisSrc && !/from\s+Shared\.registry\s+import[^\n]*\bsection\b/.test(analysisSrc)) analysisSrc = `from Shared.registry import section\n${analysisSrc}`;
 const fn = `
 
-@card("${id}", tables=${pyList(tables)}, filters=${pyList(filters)})
+@section("${id}", tables=${pyList(tables)})
 def ${fnName}(t):
     """${title}. Not built yet."""
-    # read tables as t.<table name> (pandas, filters already applied); see dashboard-work: references/cards.md
+    # read tables as t.<table name> (pandas, filters already applied); see dashboard-work: references/sections.md
     return {"data": {}, "metrics": {}}
 `;
 
@@ -186,9 +184,9 @@ fs.writeFileSync(path.join(SECTIONS, `${id}.jsx`), jsx);
 fs.writeFileSync(analysisFile, (analysisSrc ? analysisSrc.replace(/\s*$/, '\n') : header) + fn);
 if (newIndex) fs.writeFileSync(INDEX, newIndex);
 
-console.log(`new-card: ${id} ("${title}")`);
+console.log(`new-section: ${id} ("${title}")`);
 console.log(`  Src/Sections/${id}.jsx      the look (shows "Not built yet")`);
-console.log(`  Analysis/${analysisName}.py${' '.repeat(Math.max(1, 18 - analysisName.length))}the numbers: ${fnName}(t), tables ${pyList(tables)}, filters ${pyList(filters)}`);
+console.log(`  Analysis/${analysisName}.py${' '.repeat(Math.max(1, 18 - analysisName.length))}the numbers: ${fnName}(t), tables ${pyList(tables)}`);
 if (newIndex) console.log(`  Src/Sections/index.js       added to the list${addTab ? `, new page "${addTab}"` : ''}${tab ? ` (page: ${tab})` : ''}`);
 else {
   console.log('  Src/Sections/index.js       NOT changed (couldn\'t find `export default [ ... ];`). Add these two lines by hand:');

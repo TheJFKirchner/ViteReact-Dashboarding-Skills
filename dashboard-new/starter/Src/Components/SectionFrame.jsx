@@ -1,6 +1,7 @@
 import { Component, useContext, useEffect, useState } from 'react';
 import { useFilters } from '../Filters/FilterContext.jsx';
-import { AgentContext } from '../Lib/agent-context.js';
+import { AgentContext, useShellText } from '../Lib/agent-context.js';
+import Select from '../Controls/Select.jsx';
 import { useCard } from '../Lib/useCard.js';
 import Commentary from './Commentary.jsx';
 import DataOrigin from './DataOrigin.jsx';
@@ -23,14 +24,16 @@ class ErrorBoundary extends Component {
 /** Card around one section: asks the Analysis server (or an export's precomputed results) for the card's
  *  { data, metrics } at the current filters, then renders commentary + the section body.
  *  In dev, the dashboard agent (AgentContext) can swap in a preview module and highlight the card.
- *  info = meta.cards[id] from the server: { filters, tables }.
+ *  info = meta.cards[id] from the server: { filters, tables }. filters = this section's own filters (config
+ *  "section": "<id>"), drawn in its header: [{ name, label, options }].
  *  inspect: { meta, reportFilters } adds an "About this data" button (reports with "inspect": true). */
-export default function SectionFrame({ module, info, version, commentary, half, showId, inspect }) {
+export default function SectionFrame({ module, info, filters = [], version, commentary, half, showId, inspect }) {
   const { meta } = module;
   const agent = useContext(AgentContext);
   const view = agent?.view(meta.id);
   const active = view?.module ?? module;
-  const { values } = useFilters();
+  const { values, setFilter } = useFilters();
+  const shellText = useShellText();
   const [aboutOpen, setAboutOpen] = useState(false);
   const filterNames = info?.filters ?? [];
   const { result, loading } = useCard(meta.id, filterNames, values, version);
@@ -61,6 +64,13 @@ export default function SectionFrame({ module, info, version, commentary, half, 
       {view?.banner}
       <header className="card-head">
         <h2>{active.meta.title}</h2>
+        {filters.length > 0 && (
+          <div className="section-filters">
+            {filters.map((f) => (
+              <Select key={f.name} slot={`filter:${f.name}`} label={shellText(`filter:${f.name}`, f.label)} value={values[f.name]} options={f.options} onChange={(v) => setFilter(f.name, v)} />
+            ))}
+          </div>
+        )}
         {showId && <code className="section-id" title={`npm run export -- ${meta.id.split('_')[0]}`}>{meta.id}</code>}
         {inspect && (
           <button type="button" className={`about-btn${aboutOpen ? ' on' : ''}`} aria-expanded={aboutOpen} onClick={() => setAboutOpen((o) => !o)} title="Where this data comes from">

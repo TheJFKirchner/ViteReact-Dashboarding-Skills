@@ -4,6 +4,7 @@
 //   report mode (.export/entry.jsx): chosen sections, results precomputed for the report's filter combinations,
 //     header + footer stamp, plus the report's own settings: theme overrides, hidden parts, a notice line, text tabs
 // Tabs: sections with meta.tab are grouped under the tabs defined in Src/Sections/index.js.
+// Filters sit at one of three levels: the whole dashboard, one tab, or one section (dashboard.config.json).
 // The current tab and the reader's fast filter choices live in the URL hash (#tab=<id>&region=East), so links
 // and reloads keep them, in exports too (Src/Lib/hash.js).
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
@@ -36,11 +37,12 @@ const hashTab = () => readHash().tab ?? null;
 
 /** Keeps the URL hash in step with the tab and the filter choices. `names` = filters the reader may change
  *  (locked report filters are never written or read); `valid(name, value)` = the value is one of its options.
- *  A hash edited by hand (or set by the dev agent) applies the filters it names and keeps the others. */
-function HashSync({ tab, names, valid }) {
+ *  A hash edited by hand (or set by the dev agent) switches the tab and applies the filters it names, keeping the
+ *  others. One listener handles both, so a tab change can't re-render and overwrite the hash before it's read. */
+function HashSync({ tab, names, valid, onTab }) {
   const { values, setFilter } = useFilters();
   const latest = useRef(null);
-  latest.current = { tab, names, valid, values };
+  latest.current = { tab, names, valid, values, onTab };
   const pick = (vals, ns) => Object.fromEntries(ns.map((n) => [n, vals[n]]));
 
   useEffect(() => {
@@ -49,8 +51,9 @@ function HashSync({ tab, names, valid }) {
 
   useEffect(() => {
     const onHash = () => {
-      const { tab: current, names: ns, valid: ok, values: vals } = latest.current;
+      const { tab: current, names: ns, valid: ok, values: vals, onTab: switchTab } = latest.current;
       const h = readHash();
+      if (h.tab && h.tab !== current) switchTab(h.tab);
       const next = pick(vals, ns);
       for (const n of ns) {
         if (h[n] !== undefined && ok(n, h[n]) && h[n] !== vals[n]) {
@@ -135,10 +138,7 @@ function App({ sections: registry, tabs: tabDefs = [], commentary, report = null
     );
 
   useEffect(() => {
-    reload();
-    const onHash = () => setTab(hashTab());
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+    reload(); // hash changes (tab and filters) are handled by HashSync once the page has loaded
   }, []);
 
   // while the pipeline runs: poll its status; when it finishes, reload meta (new data version -> cards refetch)
@@ -187,8 +187,14 @@ function App({ sections: registry, tabs: tabDefs = [], commentary, report = null
     n,
     changeable.includes(n) && validChoice(n, fromHash[n]) ? fromHash[n] : reportFilters[n]?.value ?? ALL,
   ]));
-  const tabFilters = new Set(visible.flatMap(filtersOf));
-  const visibleFilters = hidden.has('filters') ? [] : usedFilters.filter((n) => tabFilters.has(n) && !reportFilters[n]?.locked);
+  // Where a filter lives (dashboard.config.json "filters"): no "tab"/"section" = the whole dashboard (bar above the
+  // tabs), "tab" = a bar under the tab names, shown on that tab, "section" = in that section's header.
+  const showable = (n) => !hidden.has('filters') && !reportFilters[n]?.locked;
+  const levelOf = (n) => (meta.filters[n].section ? 'section' : meta.filters[n].tab ? 'tab' : 'dashboard');
+  const dashFilters = usedFilters.filter((n) => levelOf(n) === 'dashboard' && showable(n));
+  const tabFilters = usedFilters.filter((n) => levelOf(n) === 'tab' && meta.filters[n].tab === activeTab && showable(n));
+  const sectionFilters = (id) =>
+    usedFilters.filter((n) => meta.filters[n].section === id && showable(n)).map((n) => ({ name: n, ...meta.filters[n] }));
   const params = report ? [] : Object.keys(meta.parameters ?? {});
   const textTab = tabList.find((t) => t.id === activeTab)?.text;
 
@@ -225,7 +231,7 @@ function App({ sections: registry, tabs: tabDefs = [], commentary, report = null
 
   const page = (
     <FilterProvider initial={initial}>
-      <HashSync tab={tabList.length > 1 ? activeTab : null} names={changeable} valid={validChoice} />
+      <HashSync tab={tabList.length > 1 ? activeTab : null} names={changeable} valid={validChoice} onTab={setTab} />
       <div className="page">
         <ReportHeader
           title={report?.title ?? config.title}
@@ -236,8 +242,9 @@ function App({ sections: registry, tabs: tabDefs = [], commentary, report = null
           staleDays={!report && pulled !== null && pulled > (config.staleDays ?? 7) ? pulled : null}
         />
         {report?.notice && <div className="report-notice" role="note">{report.notice}</div>}
+        <FilterBar names={dashFilters} meta={meta} params={params} onParam={askParam} busy={status?.state === 'running'} />
         {tabList.length > 1 && <TabBar tabs={tabList} active={activeTab} onSelect={selectTab} />}
-        <FilterBar names={visibleFilters} meta={meta} params={params} onParam={askParam} busy={status?.state === 'running'} />
+        <FilterBar names={tabFilters} meta={meta} className="tab-level" />
         <PipelineBanner
           pending={pending}
           status={status}
@@ -253,6 +260,7 @@ function App({ sections: registry, tabs: tabDefs = [], commentary, report = null
               key={mod.meta.id}
               module={mod}
               info={cardInfo(mod.meta.id)}
+              filters={sectionFilters(mod.meta.id)}
               version={meta.version}
               commentary={hidden.has('commentary') ? undefined : commentary[mod.meta.id]}
               half={paired[i]}

@@ -1,4 +1,4 @@
-"""Read-only inventory of a folder, for the survey helper (or anyone) before planning a dashboard.
+"""Read-only inventory of a folder, for the inventory helper (or anyone) before planning a dashboard.
 
     python <skill>/tools/peek.py <folder> [--max-files 400] [--depth 6] [--json]
 
@@ -8,7 +8,8 @@ Lists, without changing, running or copying anything:
   - code (.py .ipynb .sql .r, and app code: .js .jsx .ts .tsx .vue .svelte, .java .cs .go ...), sorted into
       READ: has queries or calculations (SQL, groupby/merge/pivot, dplyr, read_sql ...) or draws a visual (Plotly,
             matplotlib, Dash, Streamlit, ECharts, Chart.js, Recharts, D3, ggplot, HTML tables ...), or places a
-            chart component on a page. Each with the kind of hit and the lines to look at.
+            chart component on a page, or takes a filter or input (dropdowns, widgets, run arguments, query
+            parameters, a loop per segment, a date typed in at the top). Each with the kind of hit and the lines.
       NOT NEEDED: everything else (servers, routing, auth, config, build, tests, styles, plain UI parts, vendored
             code), grouped by reason. These don't need opening to plan a dashboard or a migration.
   - outputs (.html .png .jpg .svg .pdf, Tableau/Power BI files), and possible index/readme files about the data
@@ -54,6 +55,20 @@ VISUAL = [
     ("D3", re.compile(r"\bd3\.(select|scale\w*|axis\w*|line|area|arc|pie)\b")),
     ("ggplot/Shiny", re.compile(r"\bggplot\(|\brenderPlot\w*\(|\bDT::")),
     ("HTML table", re.compile(r"\.to_html\(|\.style\.(apply|format|background_gradient|highlight)|<table\b")),
+]
+# Filters and inputs: what a reader (or whoever runs it) can change, and what the queries take as a value.
+# Each becomes a dashboard filter; values passed into a query or typed in before a run are slow-filter candidates.
+FILTERS = [
+    ("Dash inputs", re.compile(r"\bdcc\.(Dropdown|RadioItems|Checklist|Slider|RangeSlider|DatePickerRange|DatePickerSingle|Input)\b")),
+    ("Streamlit inputs", re.compile(r"\bst\.(sidebar\.)?(selectbox|multiselect|radio|slider|select_slider|date_input|checkbox|text_input|number_input|segmented_control|pills)\(")),
+    ("notebook widgets", re.compile(r"\bwidgets\.(Dropdown|SelectMultiple|Select|RadioButtons|DatePicker|\w*Slider|Text|ToggleButtons)\(|@interact\b")),
+    ("Shiny inputs", re.compile(r"\b(selectInput|selectizeInput|dateRangeInput|dateInput|sliderInput|radioButtons|checkboxGroupInput)\(")),
+    ("UI filters", re.compile(r"<(select|Select|Dropdown|DatePicker|RangePicker|DateRangePicker|Slider|Autocomplete|MultiSelect)\b[^>]*\bonChange")),
+    ("request parameters", re.compile(r"\brequest\.(args|GET|query_params)\b|\bsearchParams\.get\(|\buseSearchParams\(|\bQuery\(")),
+    ("run settings", re.compile(r"\.add_argument\(\s*[\"']--|@click\.option\(|\bsys\.argv\b|\bcommandArgs\(|^\s*#\s*parameters\b", re.M)),
+    ("query parameters", re.compile(r"(?i:\bwhere\b|\band\b)[^\n;]{0,120}?(=|>=|<=|<|>|\bin\b|\bbetween\b)\s*\(?\s*(\?|%s|%\(\w+\)s|:[a-z_]\w*|@[a-z_]\w*|\{[a-z_]\w*\})|\bparams\s*=\s*[\[\(\{]")),
+    ("per-segment loop", re.compile(r"^\s*for\s+\w+\s+in\s+[A-Z][A-Z_]{2,}\b", re.M)),
+    ("setting typed in", re.compile(r"^[A-Z][A-Z_]{2,}\s*=\s*[\"']\d{4}-\d{2}(-\d{2})?[\"']|^[A-Z][A-Z_]{2,}\s*=\s*\[\s*[\"']", re.M)),
 ]
 # Never worth reading for planning, whatever they mention
 HARD_SKIP = [
@@ -253,8 +268,8 @@ def _line(text: str, pos: int) -> int:
 
 
 def classify(path: Path, text: str, extra: dict) -> dict:
-    """{"logic": [kinds], "visual": [kinds], "hit_lines": [first hit lines]} from patterns in the code."""
-    logic, visual, lines = [], [], set()
+    """{"logic", "visual", "filters": [kinds], "hit_lines", "filter_lines": [first hit lines]} from patterns."""
+    logic, visual, filters, lines, flines = [], [], [], set(), set()
     if path.suffix.lower() in (".sql", ".dax", ".sas"):
         logic.append(path.suffix.lower()[1:].upper() + " file")
     for kind, rx in LOGIC:
@@ -267,9 +282,14 @@ def classify(path: Path, text: str, extra: dict) -> dict:
         if hits:
             visual.append(kind)
             lines.update(_line(text, m.start()) for m in hits)
+    for kind, rx in FILTERS:
+        hits = list(rx.finditer(text))[:6]
+        if hits:
+            filters.append(kind)
+            flines.update(_line(text, m.start()) for m in hits)
     if extra.get("has_outputs"):
         visual.append("notebook outputs")
-    return {"logic": logic, "visual": visual, "hit_lines": sorted(lines)[:12]}
+    return {"logic": logic, "visual": visual, "filters": filters, "hit_lines": sorted(lines)[:12], "filter_lines": sorted(flines)[:12]}
 
 
 # An integrated dashboard (v2/v3 layout): only its own pieces carry over; the rest comes fresh from the starter
@@ -311,7 +331,7 @@ def sort_code(code: list[dict], root: Path) -> bool:
             e["read"], e["why"] = False, hard[f]
         elif len(users.get(Path(f).stem, [])) >= 2 and not e.get("logic"):
             e["read"], e["why"] = False, "chart building blocks (the files that place them are listed to read)"
-        elif e.get("logic") or e.get("visual") or used:
+        elif e.get("logic") or e.get("visual") or e.get("filters") or used:
             e["read"], e["why"] = True, None
             if used:
                 e["visual"] = e.get("visual", []) + [f"places {', '.join(used[:5])}"]
@@ -409,8 +429,8 @@ def main() -> int:
     p = print
     p(f"# Inventory of {root}")
     if report["integrated_dashboard"]:
-        p("This is an integrated dashboard project (v2/v3 layout). Moving it: dashboard-new references/existing-work.md,"
-          " \"Older integrated dashboards\". Only its own cards, Analysis pages and Pipeline scripts are listed to read.")
+        p("This is an integrated dashboard project (v2/v3 layout). Moving it: dashboard-new references/plan.md,"
+          " \"An older integrated dashboard\". Only its own sections, Analysis pages and Pipeline scripts are listed to read.")
     if truncated:
         p(f"(stopped after {a.max_files} files; run on a subfolder or raise --max-files for the rest)")
     if not have_pandas:
@@ -442,7 +462,7 @@ def main() -> int:
                 bits.append(c["note"])
             p(f"- {c['name']}: " + "; ".join(b for b in bits if b))
     to_read = [e for e in report["code"] if e.get("read")]
-    p(f"\n## Code to read ({len(to_read)} of {len(report['code'])} code files): queries, calculations, visuals")
+    p(f"\n## Code to read ({len(to_read)} of {len(report['code'])} code files): queries, calculations, visuals, filters")
     p("Open only these, and in them only the parts around the lines shown.")
     for e in to_read:
         size_bit = f"{e['cells']} cells" if "cells" in e else f"{e.get('lines', '?')} lines"
@@ -451,12 +471,12 @@ def main() -> int:
             p(f"  numbers: {', '.join(e['logic'])}")
         if e.get("visual"):
             p(f"  visuals: {', '.join(e['visual'])}")
+        where = lambda ls: (f"cells {', '.join(map(str, sorted({next(n for start, n in reversed(e['_cell_starts']) if start <= ln) for ln in ls})))}"
+                            if e.get("_cell_starts") else f"lines {', '.join(map(str, ls))}")   # notebooks: cells, not joined lines
+        if e.get("filters"):
+            p(f"  filters and inputs: {', '.join(e['filters'])} ({where(e['filter_lines'])})")
         if e.get("hit_lines"):
-            if e.get("_cell_starts"):   # a notebook: say which cells, not lines of the joined code
-                cells = sorted({next(n for start, n in reversed(e["_cell_starts"]) if start <= ln) for ln in e["hit_lines"]})
-                p(f"  look at cells: {', '.join(map(str, cells))}")
-            else:
-                p(f"  look at lines: {', '.join(map(str, e['hit_lines']))}")
+            p(f"  look at {where(e['hit_lines'])}")
         if e.get("mentions_files"):
             p(f"  mentions: {', '.join(e['mentions_files'])}")
         if e.get("functions"):

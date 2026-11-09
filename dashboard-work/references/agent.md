@@ -3,16 +3,16 @@
 An in-app chat (Haiku) for presentation changes while the dashboard runs locally. Changing the agent itself: `agent/README.md`.
 
 ## What it does
-- **Card looks:** click a card (or name it), then ask for chart colors, styles or commentary wording.
-- **Page:** titles and labels, theme colors and fonts, styles for every card, the shared components (KPI tiles, header, footer).
-- **Layout:** move, swap, resize, hide or show cards; move cards between tabs; reorder tabs.
+- **Section looks:** click a section (or name it), then ask for chart colors, styles or commentary wording.
+- **Page:** titles and labels, theme colors and fonts, styles for every section, the shared components (KPI tiles, header, footer).
+- **Layout:** move, swap, resize, hide or show sections; move sections between tabs; reorder tabs.
 - **Reports tab:** list, generate, duplicate, delete and build report files (it asks which filter combinations are allowed).
 - **Every change is a preview** that you Keep or Discard. Hover anything to see which file it comes from.
 - **Color questions** with no part named ("can we change the colors?") get color pickers, one per category or chart part.
 
 ## What it never does
 - Change data, metrics, `Analysis/` or `Pipeline/`.
-- Add or remove cards or tabs.
+- Add or remove sections or tabs.
 - Type numbers into commentary (only `{metric|format}` refs).
 
 It replies "a Claude Code job" with the reason, and that work is done in Claude Code instead.

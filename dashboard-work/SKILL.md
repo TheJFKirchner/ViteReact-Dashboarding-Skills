@@ -1,88 +1,109 @@
 ---
 name: dashboard-work
-description: "Add to or change an existing integrated dashboard (a folder with dashboard.config.json, Analysis/ and Src/Sections/): new or changed cards, pages, filters, data, looks, offline HTML reports, hosting. Holds the design agent for dev mode and the reference docs for building cards and data. For a first dashboard or moving existing work into one, use dashboard-new."
+description: "Change an existing integrated dashboard (a folder with dashboard.config.json, Analysis/ and Src/Sections/). Almost every request is adding a section or editing one; also filters, data, looks, offline HTML reports and hosting. For a new dashboard, or moving existing work into one, use dashboard-new."
 ---
 
 # Dashboard work
 
-For a dashboard that already exists. Read this page, then open only the reference files the task needs (the
-table at the bottom). To make a new dashboard, or to move notebooks, scripts or an old dashboard into one,
-use the **dashboard-new** skill instead; it uses this skill's references for the building steps.
+## How a dashboard is built
+- A dashboard has **tabs**, and each tab has **sections**. A section is one block on the page: a chart, a table,
+  KPI tiles, or a few of these together.
+- A section is two files that share an id such as `s3_paid_by_region`:
+  - `Analysis/<tab>.py`: a Python function that works out its numbers.
+  - `Src/Sections/s3_paid_by_region.jsx`: how it looks.
 
-## The project in one look
-```
-dashboard.config.json   name, theme, fast filters, slow filters (parameters), where the design agent is
-Data/Current/           the data: one .parquet or .csv per table
-Pipeline/               optional scripts that prepare data into Data/Current
-Analysis/<page>.py      the numbers: one @card function per card
-Src/Sections/<id>.jsx   the look: one file per card;  Src/Sections/index.js = card order and pages
-Src/custom.css, Themes/ styling
-Reports/ -> Exports/    saved report settings -> offline HTML files
-```
-A card is three pieces with one name (e.g. `s3_paid_by_region`): its function, its `.jsx` file, its line in
-`index.js`. Numbers live in Python, the look in React, so a style change can't break a number.
+  Its place on the page is one line in `Src/Sections/index.js`.
+- **Data** lives in `Data/Current/`, one file per table. `Pipeline/` scripts fill it, or files are dropped in.
+- **Filters** live in `dashboard.config.json`. Each filter sits at one level and applies to the sections under it:
 
-## What to read, edit, run and never open
-**In this skill folder:** read this page and the one or two `references/` files the route table names, nothing
-else. `agent/` (the design agent's code, 37 files) is never opened, copied or edited: projects load it from here
-when they run. To use the agent you only need `references/agent.md`. `agent/README.md` is for changing the agent
-itself.
+| Level | In the config | Shown | Applies to |
+|---|---|---|---|
+| Dashboard | no `tab` or `section` | above the tabs | every section |
+| Tab | `"tab": "<tab id>"` | under the tab names, on that tab | that tab's sections |
+| Section | `"section": "<section id>"` | in that section's header | that section |
 
-**In the project:**
+  A filter only narrows sections whose tables have its column. Sections never build their own filter dropdowns.
+  - **Fast filters** (`filters`, the usual kind) narrow data that's already loaded.
+  - **Slow filters** (`parameters`) re-query the source and always apply to the whole dashboard. Use one only
+    when changing the value means pulling data again.
+
+## First: is this adding a section or editing one?
+Run `npm run status`. It lists every tab, section, table and filter. Then sort the request:
+- "Show X", "add a chart of Y", "a new tab with ...": **Add a section**.
+- "Change", "fix", "move", "rename", "the numbers on X look wrong": **Edit a section**. Find it in the status
+  list by its title.
+- Anything else (a filter, data, looks only, a report, hosting): see the matching heading below.
+
+## Add a section
+1. Settle what it is with the user before building:
+   - **What it shows:** its charts or tables, and its tab.
+   - **Which filters it needs.** Filters already in its reach (dashboard-wide, its tab's) apply on their own.
+     For a new one, decide what it applies to: this section only (section level), its whole tab, or everything.
+     Then decide fast or slow (see **Add or move a filter**).
+2. Pick the tables it reads. `npm run status` lists each table's columns. If no table has the data yet, do
+   **Add or change data** first.
+3. Run `npm run new-section -- <name> --page <tab> --tables <table> --chart echarts|table|kpi|text`. This makes
+   both files as empty shells and puts the section on the page.
+4. Numbers: fill in its function in `Analysis/<tab>.py` (`references/sections.md`).
+5. Look: fill in `Src/Sections/<id>.jsx`. Several charts or tables in one section is fine.
+6. Add any new filter from step 1 to the config at its level (see **Add or move a filter**).
+7. Run `npm run check` and fix anything it names. Then show the user.
+
+## Edit a section
+1. Find its id in `npm run status`.
+2. Open only its two files.
+3. Change the right part:
+
+| The user wants | Change |
+|---|---|
+| Different numbers | Its function in `Analysis/<tab>.py` |
+| A different chart or table, title or note | Its `.jsx` file (`references/sections.md`) |
+| Colors, fonts, spacing, size, order | The design agent (`references/agent.md`), or `Src/custom.css` scoped to `#<id>` |
+| A different tab | `tab:` in its `meta` |
+| Different filters | The filter's level in the config, not the section |
+
+4. Run `npm run check`. Then show the user.
+
+## Add or move a filter
+1. Fast or slow? Ask one question: does changing it mean querying the source again? If not, it's fast
+   (`filters`). If so, it's slow (`parameters`); see `references/data.md`.
+2. Pick its level from what it applies to: every section (dashboard), one tab's sections (`"tab"`) or one section (`"section"`).
+3. Add it to the config, e.g. `"product": { "label": "Product", "column": "product", "tab": "costs" }`.
+4. Run `npm run check`. It warns if the filter reaches no section that has that column.
+
+## Add or change data
+1. If the file is ready, drop it into `Data/Current/`. If it needs prep, write `Pipeline/<table>.py`, ending with
+   `write_dataset(...)` (`references/data.md`).
+2. Run `python Pipeline/run_all.py --try <table>.py`, then `npm run pipeline`.
+
+## Everything else
+| Task | Read |
+|---|---|
+| Looks only (colors, fonts, wording, moving sections) | `references/agent.md` |
+| An offline HTML report | `references/reports.md` |
+| Hosting it | `references/hosting.md` |
+| Several sections or tables at once | `references/helpers.md` |
+| Remove a section | Nothing to read. Ask the user first, then delete its two files, its line in `index.js` and any report that lists it |
+| Changing the design agent itself | `agent/README.md` |
+
+## What to open
 | | Files |
 |---|---|
-| **Edit** (read the one you're changing) | `dashboard.config.json`, `Pipeline/<table>.py`, `Analysis/<page>.py`, `Src/Sections/*.jsx`, `Src/Sections/index.js`, `Src/custom.css`, `Reports/*.json`, `Themes/` |
-| **Run, don't read** | `npm run status / check / new-card / pipeline / export / dev`, `python Analysis/check.py --show <id>`, `python Pipeline/run_all.py --try <script>`. Their output is the answer |
-| **Never open** | The app: `Src/App.jsx`, `Src/main.jsx`, `Src/styles.css`, `Src/Components/`, `Src/Controls/`, `Src/Filters/`, `Src/Lib/`, `Analysis/Shared/`, `Analysis/server.py`, `check.py`, `precompute.py`, `Pipeline/run_all.py`, `Pipeline/_dataset_io.py`, `Tools/`, `index.html`, `package*.json`, `vite*.config.js`, `node_modules/`, `Data/` (use `npm run status` for tables and columns) |
+| **Edit** (read the one you're changing) | `dashboard.config.json`, `Pipeline/<table>.py`, `Analysis/<tab>.py`, `Src/Sections/*.jsx`, `Src/Sections/index.js`, `Src/custom.css`, `Reports/*.json`, `Themes/` |
+| **Run, don't read** | The commands below. Their output is the answer |
+| **Never open** | The app itself: `Src/App.jsx`, `Src/main.jsx`, `Src/styles.css`, `Src/Components/`, `Src/Controls/`, `Src/Filters/`, `Src/Lib/`, `Analysis/Shared/`, `Analysis/server.py`, `check.py`, `precompute.py`, `Pipeline/run_all.py`, `Pipeline/_dataset_io.py`, `Tools/`, `index.html`, `package*.json`, `vite*.config.js`, `node_modules/`, `Data/` |
 
-Exceptions: a pattern card when building the first one (`references/cards.md` says which), and the list at the top
-of `Src/Components/ChartECharts.jsx` for a chart type that isn't loaded yet. Helpers get their brief, which names
-the files they may open; don't hand them a folder to explore.
-
-## How to work
-1. `npm run status` first: pages, cards, tables, filters, reports and the check result.
-2. Sort the request with the table below and read only those files.
-3. Build a little, `npm run check`, look at it running (`npm run dev:agent`), show the user, ask what's next.
-
-When something looks odd (a script fails, a column is missing), say what you found and carry on with the rest.
-Removing a card or a page: confirm with the user first.
-
-## Route: task -> files
-| The user wants | Read | Run |
-|---|---|---|
-| Colors, fonts, labels, wording, move / resize / hide cards | `references/agent.md` | `npm run dev:agent`, the ✦ button |
-| A new card, or different numbers on one | `references/cards.md` | `npm run new-card -- <name> --page <page> --chart ...` |
-| A new page, or reorganizing pages | `references/organizing.md`, then `references/cards.md` | `npm run new-card` per card |
-| New or refreshed data, a new table | `references/data.md` | `python Pipeline/run_all.py --try <script>`, then `npm run pipeline` |
-| A new filter (fast, or slow if changing it means re-querying the source) | `references/data.md` (Filters: fast or slow) | edit `dashboard.config.json` |
-| Several tables or pages at once | `references/helpers.md` + the brief it names | one helper per table or page |
-| An offline HTML report | `references/reports.md` | `npm run export -- <report>` |
-| Hosting it | `references/hosting.md` | `npm run build` |
-| Remove a card | none | delete its three pieces, take it out of any report |
-| Change the design agent itself | `agent/README.md` (maintainer notes) | |
+In this skill folder, open only this page and the reference file a step names. `agent/` is never opened or
+copied. Helpers get their brief, which lists the files they may open, never a folder to explore.
 
 ## Commands (run in the project)
 | Command | Does |
 |---|---|
-| `npm run status` | Map of the dashboard (read-only) |
-| `npm run dev` / `npm run dev:agent` | Open it / open it with the design agent and card labels |
-| `npm run new-card -- <name> --page <p> --chart echarts\|table\|kpi\|plotly\|text` | Empty card shell; never overwrites |
-| `python Analysis/check.py --show <id> [--filter col=value]` | Print one card's numbers |
+| `npm run status` | Map of the dashboard: tabs, sections, tables, filters and their levels, reports |
+| `npm run new-section -- <name> --page <tab> --tables <t> --chart <kind>` | Empty section shell; never overwrites |
+| `npm run check` | Every section has its numbers, its text refers to real ones, filters reach a section |
+| `npm run dev` / `npm run dev:agent` | Open it / open it with the design agent |
+| `python Analysis/check.py --show <id> [--filter col=value]` | Print one section's numbers |
 | `python Pipeline/run_all.py --try <script>` | Try one Pipeline script without touching Data/Current |
-| `npm run pipeline` | Refresh all data (swaps in only if every script works) |
-| `npm run check` | Every card has its numbers and its text refers to real ones |
+| `npm run pipeline` | Refresh all data |
 | `npm run export -- <report>` | Offline HTML report |
-
-## Files in this skill
-| File | What it is |
-|---|---|
-| `references/cards.md` | Writing a card: the Python function, the `.jsx` file, text formats, cheat sheet |
-| `references/data.md` | Getting data in, Pipeline scripts, fast and slow filters, shaping tables |
-| `references/organizing.md` | Laying out pages, cards and filters; naming; a plan table |
-| `references/helpers.md` | When to use helpers, the order rule, checking what they return |
-| `references/helper-data.md` | Brief for a data helper (one per table, mid-size model) |
-| `references/helper-cards.md` | Brief for a card helper (one per page, mid-size model) |
-| `references/reports.md` | Offline HTML reports |
-| `references/hosting.md` | Building and serving it, scheduled refresh |
-| `references/agent.md` | The design agent: what it does, setup, troubleshooting |
-| `agent/` | The design agent's code. One copy, used by every project; never opened, never copied into one |

@@ -176,7 +176,8 @@ def build_meta(m: dict, filters: dict, card_ids: list[str], params: dict) -> dic
     used_tables = {t for c in card_ids for t in CARDS[c].tables}
     manifest["tables"] = {n: e for n, e in manifest["tables"].items() if n in used_tables}
     return {
-        "filters": {n: {"label": s.get("label", n), "column": s.get("column", n),
+        "filters": {n: {"label": s.get("label", n), "column": s.get("column", n), "tab": s.get("tab"),
+                        "section": s.get("section"),
                         "options": filters[n]["options"] if n in filters else [ALL]} for n, s in specs.items()},
         "parameters": params,
         "cards": {c: {"filters": CARDS[c].filters, "tables": CARDS[c].tables, "module": CARDS[c].module} for c in card_ids},

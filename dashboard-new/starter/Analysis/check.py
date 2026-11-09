@@ -88,6 +88,7 @@ def main() -> int:
         result = engine.run(cid, {})    # every filter at "All"
         cards[cid] = {
             "filters": c.filters,
+            "declared": c.declared is not None,
             "tables": c.tables,
             "module": c.module,
             "metrics": result.get("metrics", {}),

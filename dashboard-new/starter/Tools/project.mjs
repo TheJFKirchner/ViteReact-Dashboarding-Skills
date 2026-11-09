@@ -77,7 +77,7 @@ export async function loadProject({ analysis: runAnalysis = true } = {}) {
   const FILTERS = Object.fromEntries(
     Object.entries(config.filters ?? {})
       .filter(([k]) => !k.startsWith('_'))
-      .map(([k, s]) => [k, { label: s.label ?? k, column: s.column ?? k, options: analysis.filters?.[k] ?? [ALL] }]),
+      .map(([k, s]) => [k, { label: s.label ?? k, column: s.column ?? k, tab: s.tab ?? null, section: s.section ?? null, options: analysis.filters?.[k] ?? [ALL] }]),
   );
   return {
     registry: registryModule.default,
@@ -123,7 +123,7 @@ export function validateProject(p) {
   const noData = !a.error && (!p.manifest?.tables || !Object.keys(p.manifest.tables).length);
   // a brand-new project (no cards yet) is fine: say what's next instead of failing
   if (noData) (noCards ? warnings : errors).push('Data/Current has no tables yet (run npm run pipeline, or put .parquet/.csv files there)');
-  if (noCards) warnings.push('no cards yet: add one with npm run new-card -- <name>');
+  if (noCards) warnings.push('no sections yet: add one with npm run new-section -- <name>');
   if (!Array.isArray(p.registry)) errors.push('Src/Sections/index.js must default-export an array of section modules');
   const tabIds = new Set();
   for (const t of p.tabs ?? []) {
@@ -150,11 +150,11 @@ export function validateProject(p) {
     if (mod.commentary !== undefined && typeof mod.commentary !== 'string') err('`export const commentary` must be a string (template literal)');
     if (!fs.existsSync(sectionPath(meta.id))) err(`file Src/Sections/${meta.id}.jsx not found (file name must equal id)`);
     if (!meta.title) err('meta.title missing');
-    // recommended: echarts, then plotly; any other library is allowed (dashboard-work: references/cards.md)
+    // recommended: echarts, then plotly; any other library is allowed (dashboard-work: references/sections.md)
     if (!/^[a-z][a-z0-9_-]*$/.test(meta.library ?? '')) err(`meta.library must name the chart library (e.g. ${LIBRARIES.join(', ')})`);
     if (tabIds.size && !tabIds.has(meta.tab)) err(`meta.tab must be one of ${[...tabIds].join(', ')} (tabs are defined in Src/Sections/index.js)`);
     if (!tabIds.size && meta.tab) err('meta.tab set but Src/Sections/index.js exports no tabs');
-    for (const k of V1_META) if (k in meta) err(`meta.${k} is a v1 leftover: tables, filters and metrics now come from the card's Analysis function (@card in Analysis/<topic>.py); remove it`);
+    for (const k of V1_META) if (k in meta) err(`meta.${k} is a v1 leftover: tables, filters and metrics now come from the card's Analysis function (@section in Analysis/<page>.py); remove it`);
 
     const src = fs.existsSync(sectionPath(meta.id)) ? fs.readFileSync(sectionPath(meta.id), 'utf8') : '';
     const usesPlotly = /ChartPlotly|plotly\.js/.test(src);
@@ -169,7 +169,7 @@ export function validateProject(p) {
     if (a.error) continue; // Analysis didn't run (e.g. no data yet): its error above says why; card checks would only mislead
     const card = p.cards[meta.id];
     if (!card || card.module === null) {
-      err(`no Analysis function: add @card("${meta.id}", tables=[...], filters=[...]) in Analysis/<topic>.py`);
+      err(`no Analysis function: add @section("${meta.id}", tables=[...]) in Analysis/<page>.py`);
       continue;
     }
     for (const t of card.tables ?? []) if (p.manifest?.tables && !p.manifest.tables[t]) err(`Analysis table "${t}" is not in Data/Current (pipeline table or .parquet/.csv file)`);
@@ -184,6 +184,28 @@ export function validateProject(p) {
     if (md) for (const prob of p.commentary.renderCommentary(md, metrics).problems) err(`commentary ${prob}`);
     for (const [k, v] of Object.entries(metrics)) {
       if (isNull(v)) warnings.push(`${where}: metric "${k}" is null on unfiltered data${refs.has(k) ? ' (shows "n/a" in the commentary)' : ''}`);
+    }
+  }
+
+  // where each filter lives: the whole dashboard (no tab/section), one tab, or one section
+  const tabOf = Object.fromEntries((p.registry ?? []).map((m) => [m?.meta?.id, m?.meta?.tab]));
+  const levelText = (f) => (f.section ? `section ${f.section}` : f.tab ? `tab ${f.tab}` : 'the whole dashboard');
+  for (const [name, f] of Object.entries(p.FILTERS)) {
+    const where = `dashboard.config.json filter "${name}"`;
+    if (f.tab && f.section) errors.push(`${where}: give it "tab" or "section", not both`);
+    else if (f.tab && !tabIds.has(f.tab)) errors.push(`${where}: tab "${f.tab}" doesn't exist (tabs: ${[...tabIds].join(', ') || 'none, this dashboard has one page'})`);
+    else if (f.section && !ids.has(f.section)) errors.push(`${where}: section "${f.section}" doesn't exist`);
+    else if (!a.error && ids.size && !Object.values(p.cards).some((c) => c.filters?.includes(name))) {
+      warnings.push(`${where} (${levelText(f)}) applies to no section: none of the sections it reaches reads a table with column "${f.column}"`);
+    }
+  }
+  for (const [id, c] of Object.entries(p.cards)) {
+    if (!c.declared) continue;
+    for (const n of c.filters ?? []) {
+      const f = p.FILTERS[n];
+      if (f && ((f.section && f.section !== id) || (f.tab && f.tab !== tabOf[id]))) {
+        warnings.push(`section ${id}: its @section line lists filter "${n}", which lives on ${levelText(f)}; remove filters=[...] from that line so the config decides`);
+      }
     }
   }
 
